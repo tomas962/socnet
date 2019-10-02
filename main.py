@@ -21,9 +21,7 @@ comments = [
 
 @app.route('/')
 def hello():
-    name = request.args.get("name", "World")
-    test = models.User("Username", "Regular user", "2019-09-30")
-    return jsonify(username=test.username, group=test.group, dateRegistered=test.dateRegistered)
+    return {"routes": ["users", "comments", "posts"]}
 
 
 ####### USERS ############
