@@ -61,8 +61,8 @@ def delete_user(user_id):
     global users
     for i in range(len(users)):
         if users[i]["id"] == user_id:
-            users.pop(i)
-            return Response(status=200)
+            return users.pop(i)
+            
     return Response(status=404)
 
 ####### POSTS ############
@@ -102,8 +102,8 @@ def delete_post(post_id):
     global posts
     for i in range(len(posts)):
         if posts[i]["id"] == post_id:
-            posts.pop(i)
-            return Response(status=200)
+            return posts.pop(i)
+            
     return Response(status=404)
 
 ####### COMMENTS ############
@@ -143,6 +143,6 @@ def delete_comment(comment_id):
     global comments
     for i in range(len(comments)):
         if comments[i]["id"] == comment_id:
-            comments.pop(i)
-            return Response(status=200)
+            return comments.pop(i)
+            
     return Response(status=404)
