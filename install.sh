@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pip3 install flask
+py -m pip install flask --user

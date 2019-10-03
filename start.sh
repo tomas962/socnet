@@ -2,4 +2,4 @@
 
 export FLASK_APP=main.py
 export FLASK_ENV=development
-python3 -m flask run
+"C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\Python36_64\\python" -m flask run
