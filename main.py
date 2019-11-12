@@ -1,5 +1,4 @@
 from flask import Flask, escape, request, jsonify, Response
-import models
 
 app = Flask(__name__)
 
@@ -31,13 +30,14 @@ posts = [
 comments = [
     {"id":0, "user_id":1, "post_id":1, "text":"Who?", "date":"2019-09-24T18:35:35.000Z"},
     {"id":1, "user_id":2, "post_id":1, "text":"So?", "date":"2019-09-25T08:55:44.000Z"},
-    {"id":3, "user_id":2, "post_id":2, "text":"So?", "date":"2019-09-25T08:55:44.000Z"}
+    {"id":2, "user_id":2, "post_id":2, "text":"So?", "date":"2019-09-25T08:55:44.000Z"}
 ]
 
 @app.after_request
 def set_content_type(response):
     response.headers["Content-Type"] = "application/json"
-    if response.status_code == 404:
+    print(str(response.status_code // 100))
+    if response.status_code // 100 == 4 or response.status_code // 100 == 5:
         response.set_data("")
     return response
 
@@ -64,7 +64,7 @@ def post_user():
     user = request.get_json()
     user["id"] = new_id(users)
     users.append(user)
-    response = Response(status=200 )
+    response = Response(status=201 )
     response.headers["Location"] = "/users/" + str(user["id"])
     return response
 
@@ -132,7 +132,7 @@ def post_post(user_id = None):
         post = request.get_json()
         post["id"] = new_id(posts)
         posts.append(post)
-        response =  Response(status=200 )
+        response =  Response(status=201 )
         response.headers['location'] = "/posts/" + str(post["id"])
         return response
     elif exists(users, user_id):
@@ -140,7 +140,7 @@ def post_post(user_id = None):
         post["id"] = new_id(posts)
         post["user_id"] = user_id
         posts.append(post)
-        response =  Response(status=200 )
+        response =  Response(status=201 )
         response.headers['location'] = "/users/" + str(user_id) + "/posts/" + str(post["id"])
         return response
     #if doesn't exist
@@ -283,14 +283,14 @@ def post_comment(user_id = None, post_id = None):
     comment["id"] = new_id(comments)
     if user_id is None and post_id is None:
         comments.append(comment)
-        response = Response(status=200)
+        response = Response(status=201)
         response.headers["Location"] = "/comments/" + str(comment["id"])
         return response
     elif user_id is None:
         if exists(posts, post_id):
             comment["post_id"] = post_id
             comments.append(comment)
-            response = Response(status=200)
+            response = Response(status=201)
             response.headers["Location"] = "/posts/" + str(post_id) + "/comments/" + str(comment["id"])
             return response    
         return Response(status=404)
@@ -298,7 +298,7 @@ def post_comment(user_id = None, post_id = None):
         if exists(users, user_id):
             comment["user_id"] = user_id
             comments.append(comment)
-            response = Response(status=200)
+            response = Response(status=201)
             response.headers["Location"] = "/users/" + str(user_id) + "/comments/" + str(comment["id"])
             return response
         return Response(status=404)
@@ -307,7 +307,7 @@ def post_comment(user_id = None, post_id = None):
             comment["user_id"] = user_id
             comment["post_id"] = post_id
             comments.append(comment)
-            response = Response(status=200)
+            response = Response(status=201)
             response.headers["Location"] = "/users/" + str(user_id) + "/posts/" + str(post_id) + "/comments/" + str(comment["id"])
             return response
         return Response(status=404)
@@ -381,11 +381,11 @@ def put_comment(comment_id, user_id = None, post_id = None):
         return Response(status=404)        
     return Response(status=404 )
 
-@app.route('/comments/<int:comment_id>', methods=['PUT'])
-@app.route('/users/<int:user_id>/comments/<int:comment_id>', methods=['PUT'])
-@app.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['PUT'])
-@app.route('/users/<int:user_id>/posts/<int:post_id>/comments/<int:comment_id>', methods=['PUT'])
-@app.route('/posts/<int:post_id>/users/<int:user_id>/comments/<int:comment_id>', methods=['PUT'])
+@app.route('/comments/<int:comment_id>', methods=['DELETE'])
+@app.route('/users/<int:user_id>/comments/<int:comment_id>', methods=['DELETE'])
+@app.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+@app.route('/users/<int:user_id>/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+@app.route('/posts/<int:post_id>/users/<int:user_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_comment(comment_id, post_id = None, user_id = None):
     if user_id is None and post_id is None:
         for i in range(len(comments)):
