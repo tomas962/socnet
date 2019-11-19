@@ -1,6 +1,12 @@
 from flask import Flask, escape, request, jsonify, Response
+from database import db_session
+from models import User
 
 app = Flask(__name__)
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    db_session.remove()
 
 def exists(resource, id):
     for r in resource:
@@ -43,6 +49,8 @@ def set_content_type(response):
 
 @app.route('/')
 def hello():
+    print("hello")
+    print(User.query.all())
     return {"routes": ["users", "comments", "posts"]}
 
 
