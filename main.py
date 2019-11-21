@@ -6,15 +6,22 @@ import sqlalchemy
 import time
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
-    get_jwt_identity
+    get_jwt_identity, create_refresh_token, jwt_refresh_token_required
 )
+
 
 app = Flask(__name__)
 app.debug = True
 
 # Setup the Flask-JWT-Extended extension
 app.config['JWT_SECRET_KEY'] = 'adrh51561234@!#(&$%$#@Hfgnr(#@g256sh12g9svd2))'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=30)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)
 jwt = JWTManager(app)
+
+@jwt.invalid_token_loader
+def unauth(reason):
+    return {"msg":reason}, 401
 
 
 @app.route('/auth', methods=['POST'])
@@ -29,35 +36,34 @@ def login():
     if not password:
         return jsonify({"msg": "Missing password parameter"}), 400
 
-    expires = timedelta(minutes=30)
     user = User.query.filter(User.username == username).one_or_none()
     if user.password == password:
-        access_token = create_access_token(identity={"user_id":user.user_id, "group":user.group},
-         expires_delta=expires)
-        return jsonify(access_token=access_token), 200
+        access_token = create_access_token(identity={"user_id":user.user_id, "group":user.group})
+        refresh_token = create_refresh_token(identity={"user_id":user.user_id, "group":user.group})
+        return jsonify(access_token=access_token, refresh_token=refresh_token), 200
 
 
     return jsonify({"error": "Bad username or password"}), 401
 
+@app.route('/refresh', methods=['POST'])
+@jwt_refresh_token_required
+def refresh():
+    current_user = get_jwt_identity()
+    ret = {
+        'access_token': create_access_token(identity=current_user)
+    }
+    return jsonify(ret), 200
+
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
-
-# Protect a view with jwt_required, which requires a valid access token
-# in the request to access.
-@app.route('/protected', methods=['GET'])
-@jwt_required
-def protected():
-    # Access the identity of the current user with get_jwt_identity
-    current_user = get_jwt_identity()
-    return jsonify(logged_in_as=current_user), 200
 
 @app.after_request
 def set_content_type(response):
     print(str(response.status_code // 100))
     data = response.get_data(True)
     if response.status_code // 100 == 4 or response.status_code // 100 == 5:
-        if "\"error\"" not in response.get_data(True):
+        if "\"error\"" not in response.get_data(True) and "\"msg\"" not in response.get_data(True):
             response.set_data("")
     response.headers["Content-Type"] = "application/json"
     return response
@@ -126,16 +132,20 @@ def put_user(user_id):
     return response
 
 @app.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required
 def delete_user(user_id):
-    user_row = User.query.filter(User.user_id == user_id)
-    user = user_row.one_or_none()
-    if user is not None:
-        user_row.delete()
-        db_session.commit()
-        return user.serialize()
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        user_row = User.query.filter(User.user_id == user_id)
+        user = user_row.one_or_none()
+        if user is not None:
+            user_row.delete()
+            db_session.commit()
+            return user.serialize()
+        else:
+            return Response(status=404 )
     else:
-        return Response(status=404 )
-            
+        return Response(status=403)
 
 ####### POSTS ############
 @app.route('/users/<int:user_id>/posts/', methods=['GET'])
@@ -258,29 +268,41 @@ def put_user_post(post_id, user_id):
 
 
 @app.route('/posts/<int:post_id>', methods=['DELETE'])
+@jwt_required
 def delete_post(post_id, user_id = None):
-    post_row = Post.query.filter(Post.post_id == post_id)
-    post = post_row.first()
-    if post is None:
-        return Response('{"error":"post not found"}',status=404 )
-    
-    post_row.delete()
-    db_session.commit()
-    return post.serialize()
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        post_row = Post.query.filter(Post.post_id == post_id)
+        post = post_row.first()
+        if post is None:
+            return Response('{"error":"post not found"}',status=404 )
+        
+        post_row.delete()
+        db_session.commit()
+        return post.serialize()
+    else:
+        return Response(status=403)
+
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>', methods=['DELETE'])
+@jwt_required
 def delete_users_post(post_id, user_id = None):
-    if User.query.filter(User.user_id == user_id).first() is None:
-        return Response('{"error":"user not found"}',status=404 )
-    
-    post_row = Post.query.filter(Post.post_id == post_id).filter(Post.user_id == user_id)
-    post = post_row.first()
-    if post is None:
-        return Response('{"error":"post not found"}',status=404 )
-    
-    post_row.delete()
-    db_session.commit()
-    return post.serialize()
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        if User.query.filter(User.user_id == user_id).first() is None:
+            return Response('{"error":"user not found"}',status=404 )
+        
+        post_row = Post.query.filter(Post.post_id == post_id).filter(Post.user_id == user_id)
+        post = post_row.first()
+        if post is None:
+            return Response('{"error":"post not found"}',status=404 )
+        
+        post_row.delete()
+        db_session.commit()
+        return post.serialize()
+    else:
+        return Response(status=403)
+
 
 ####### COMMENTS ############
 @app.route('/comments/', methods=['GET'])
