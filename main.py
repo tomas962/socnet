@@ -4,43 +4,53 @@ from models import User, Post, Comment
 from datetime import datetime, timedelta
 import sqlalchemy
 import time
+from flask_jwt_extended import (
+    JWTManager, jwt_required, create_access_token,
+    get_jwt_identity
+)
 
 app = Flask(__name__)
 app.debug = True
 
-from flask_jwt import JWT, jwt_required, current_identity
-from werkzeug.security import safe_str_cmp
+# Setup the Flask-JWT-Extended extension
+app.config['JWT_SECRET_KEY'] = 'adrh51561234@!#(&$%$#@Hfgnr(#@g256sh12g9svd2))'
+jwt = JWTManager(app)
 
 
-def authenticate(username, password):
+@app.route('/auth', methods=['POST'])
+def login():
+    if not request.is_json:
+        return jsonify({"msg": "Missing JSON in request"}), 400
+
+    username = request.json.get('username', None)
+    password = request.json.get('password', None)
+    if not username:
+        return jsonify({"msg": "Missing username parameter"}), 400
+    if not password:
+        return jsonify({"msg": "Missing password parameter"}), 400
+
+    expires = timedelta(minutes=30)
     user = User.query.filter(User.username == username).one_or_none()
     if user.password == password:
-        return {"id":user.user_id, "group":user.group}
+        access_token = create_access_token(identity={"user_id":user.user_id, "group":user.group},
+         expires_delta=expires)
+        return jsonify(access_token=access_token), 200
 
-def identity(payload):
-    return payload["identity"]
 
-app.config['SECRET_KEY'] = 'super-secret'
-
-jwt = JWT(app, authenticate, identity)
-
-@jwt.jwt_payload_handler
-def make_payload(identity):
-    iat = int(time.time())
-    exp = iat + 1800
-    nbf = iat + 0
-    return {'exp': exp, 'iat': iat, 'nbf': nbf, 'identity': identity}
-
-@app.route('/protected')
-@jwt_required()
-def protected():
-    return '%s' % current_identity
+    return jsonify({"error": "Bad username or password"}), 401
 
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
 
-
+# Protect a view with jwt_required, which requires a valid access token
+# in the request to access.
+@app.route('/protected', methods=['GET'])
+@jwt_required
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
 
 @app.after_request
 def set_content_type(response):
@@ -586,8 +596,9 @@ def put_user_post_comment(comment_id, user_id, post_id):
 
 
 @app.route('/comments/<int:comment_id>', methods=['DELETE'])
-@jwt_required()
+@jwt_required
 def delete_comment(comment_id):
+    current_identity = get_jwt_identity()
     if current_identity["group"] == "admin":
         comment_row = Comment.query.filter(Comment.comment_id == comment_id)
         comment = comment_row.first()
@@ -600,55 +611,66 @@ def delete_comment(comment_id):
         return Response(status=403)
 
 @app.route('/users/<int:user_id>/comments/<int:comment_id>', methods=['DELETE'])
+@jwt_required
 def delete_user_comment(comment_id, user_id):
-    user = User.query.filter(User.user_id == user_id).first()
-    if user is None:
-        return Response('{"error":"user not found"}',status=404 )
-    
-    comment_row = Comment.query.filter(Comment.user_id == user_id).filter(Comment.comment_id == comment_id)
-    comment = comment_row.first()
-    if comment is None:
-        return Response('{"error":"comment not found"}',status=404 )
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        user = User.query.filter(User.user_id == user_id).first()
+        if user is None:
+            return Response('{"error":"user not found"}',status=404 )
+        
+        comment_row = Comment.query.filter(Comment.user_id == user_id).filter(Comment.comment_id == comment_id)
+        comment = comment_row.first()
+        if comment is None:
+            return Response('{"error":"comment not found"}',status=404 )
 
-    comment_row.delete()
-    db_session.commit()
-    return comment.serialize()
-
+        comment_row.delete()
+        db_session.commit()
+        return comment.serialize()
+    else:
+        return Response(status=403)
 
 @app.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_post_comment(comment_id, post_id):
-    post = Post.query.filter(Post.post_id == post_id).first()
-    if post is None:
-        return Response('{"error":"post not found"}',status=404 )
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        post = Post.query.filter(Post.post_id == post_id).first()
+        if post is None:
+            return Response('{"error":"post not found"}',status=404 )
 
-    comment_row = Comment.query.filter(Comment.comment_id == comment_id).filter(Comment.post_id == post_id)
-    comment = comment_row.first()
+        comment_row = Comment.query.filter(Comment.comment_id == comment_id).filter(Comment.post_id == post_id)
+        comment = comment_row.first()
 
-    if comment is None:
-        return Response('{"error":"comment not found"}',status=404 )
+        if comment is None:
+            return Response('{"error":"comment not found"}',status=404 )
 
-    comment_row.delete()
-    db_session.commit()
-    return comment.serialize()
-
+        comment_row.delete()
+        db_session.commit()
+        return comment.serialize()
+    else:
+        return Response(status=403)
 
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
 @app.route('/posts/<int:post_id>/users/<int:user_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_user_post_comment(comment_id, post_id = None, user_id = None):
-    user = User.query.filter(User.user_id == user_id).first()
-    if user is None:
-        return Response('{"error":"user not found"}',status=404 )
+    current_identity = get_jwt_identity()
+    if current_identity["group"] == "admin":
+        user = User.query.filter(User.user_id == user_id).first()
+        if user is None:
+            return Response('{"error":"user not found"}',status=404 )
 
-    post = Post.query.filter(Post.post_id == post_id).first()
-    if post is None:
-        return Response('{"error":"post not found"}',status=404 )
+        post = Post.query.filter(Post.post_id == post_id).first()
+        if post is None:
+            return Response('{"error":"post not found"}',status=404 )
 
-    comment_row = Comment.query.filter(Comment.user_id == user_id).filter(Comment.post_id == post_id).filter(Comment.comment_id == comment_id)
-    comment = comment_row.first()
-    if comment is None:
-        return Response('{"error":"comment not found"}',status=404 )
+        comment_row = Comment.query.filter(Comment.user_id == user_id).filter(Comment.post_id == post_id).filter(Comment.comment_id == comment_id)
+        comment = comment_row.first()
+        if comment is None:
+            return Response('{"error":"comment not found"}',status=404 )
 
-    comment_row.delete()
-    db_session.commit()
-    return comment.serialize()
+        comment_row.delete()
+        db_session.commit()
+        return comment.serialize()
+    else:
+        return Response(status=403)
