@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('mysql://root@localhost:3306/socnet', convert_unicode=True)
+engine = create_engine('mysql://root@127.0.0.1:3306/socnet', convert_unicode=True)
 
 db_session = scoped_session(sessionmaker(autocommit=False,
                                          autoflush=False,
@@ -18,3 +18,4 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     print("Connected")
     print(engine)
+    
