@@ -4,6 +4,7 @@ from models import User, Post, Comment
 from datetime import datetime, timedelta
 import sqlalchemy
 import time
+from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     get_jwt_identity, create_refresh_token, jwt_refresh_token_required
@@ -12,6 +13,7 @@ from flask_jwt_extended import (
 
 app = Flask(__name__)
 app.debug = True
+CORS(app, support_credentials=True)
 
 # Setup the Flask-JWT-Extended extension
 app.config['JWT_SECRET_KEY'] = 'adrh51561234@!#(&$%$#@Hfgnr(#@g256sh12g9svd2))'
@@ -27,19 +29,22 @@ def unauth(reason):
 @app.route('/auth', methods=['POST'])
 def login():
     if not request.is_json:
-        return jsonify({"msg": "Missing JSON in request"}), 400
+        return jsonify({"error": "Missing JSON in request"}), 400
 
     username = request.json.get('username', None)
     password = request.json.get('password', None)
     if not username:
-        return jsonify({"msg": "Missing username parameter"}), 400
+        return jsonify({"error": "Missing username parameter"}), 400
     if not password:
-        return jsonify({"msg": "Missing password parameter"}), 400
+        return jsonify({"error": "Missing password parameter"}), 400
 
     user = User.query.filter(User.username == username).one_or_none()
+    if user is None:
+        return jsonify({"error": "Bad username or password"}), 401
+
     if user.password == password:
-        access_token = create_access_token(identity={"user_id":user.user_id, "group":user.group})
-        refresh_token = create_refresh_token(identity={"user_id":user.user_id, "group":user.group})
+        access_token = create_access_token(identity={"user_id":user.user_id, "group":user.group, "username":user.username})
+        refresh_token = create_refresh_token(identity={"user_id":user.user_id, "group":user.group, "username":user.username})
         return jsonify(access_token=access_token, refresh_token=refresh_token), 200
 
 
@@ -162,7 +167,7 @@ def user_posts_list(user_id = None):
 
 @app.route('/posts/', methods=['GET'])
 def posts_list():
-    posts_rows = Post.query.all()
+    posts_rows = Post.query.order_by(Post.date.desc()).all()
     posts = []
     for post in posts_rows:
         posts.append(post.serialize())
@@ -185,6 +190,7 @@ def get_user_post(post_id, user_id):
         return post.serialize()
 
 @app.route('/posts/', methods=['POST'])
+@jwt_required
 def post_post():
     postjson = request.get_json()
     if "user_id" not in postjson:
@@ -200,6 +206,7 @@ def post_post():
     return response
 
 @app.route('/users/<int:user_id>/posts/', methods=['POST'])
+@jwt_required
 def post_user_post(user_id):
     if User.query.filter(User.user_id == user_id).first() is None:
         return Response('{"error":"user not found"}', status=404)
@@ -214,6 +221,7 @@ def post_user_post(user_id):
     return response
 
 @app.route('/posts/<int:post_id>', methods=['PUT'])
+@jwt_required
 def put_post(post_id):
     postjson = request.get_json()
     postjson["post_id"] = post_id
@@ -242,6 +250,7 @@ def put_post(post_id):
 
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>', methods=['PUT'])
+@jwt_required
 def put_user_post(post_id, user_id):
     if User.query.filter(User.user_id == user_id).first() is None:
         return Response('{"error":"user with user_id not found"}', status = 404)
@@ -307,7 +316,7 @@ def delete_users_post(post_id, user_id = None):
 ####### COMMENTS ############
 @app.route('/comments/', methods=['GET'])
 def comments_list():
-    comment_rows = Comment.query.all()
+    comment_rows = Comment.query.order_by(Comment.date.desc()).all()
     comments = []
     for c in comment_rows:
         comments.append(c.serialize())
@@ -395,6 +404,7 @@ def get_user_post_comment(comment_id, post_id = None, user_id = None):
     return comment.serialize()
 
 @app.route('/comments/', methods=['POST'])
+@jwt_required
 def post_comment():
     commentjson = request.get_json()
     if "user_id" not in commentjson:
@@ -418,6 +428,7 @@ def post_comment():
     
 
 @app.route('/users/<int:user_id>/comments/', methods=['POST'])
+@jwt_required
 def post_user_comment(user_id):
     commentjson = request.get_json()
     commentjson["user_id"] = user_id
@@ -442,6 +453,7 @@ def post_user_comment(user_id):
 
 
 @app.route('/posts/<int:post_id>/comments/', methods=['POST'])
+@jwt_required
 def post_post_comment(post_id):
     commentjson = request.get_json()
     commentjson["post_id"] = post_id
@@ -468,6 +480,7 @@ def post_post_comment(post_id):
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>/comments/', methods=['POST'])
 @app.route('/posts/<int:post_id>/users/<int:user_id>/comments/', methods=['POST'])
+@jwt_required
 def post_user_post_comment(user_id, post_id):
     post = Post.query.filter(Post.post_id == post_id).first()
     if post is None:
@@ -492,6 +505,7 @@ def post_user_post_comment(user_id, post_id):
     
 
 @app.route('/comments/<int:comment_id>', methods=['PUT'])
+@jwt_required
 def put_comment(comment_id):
     commentjson = request.get_json()
     commentjson["comment_id"] = comment_id
@@ -523,6 +537,7 @@ def put_comment(comment_id):
 
 
 @app.route('/users/<int:user_id>/comments/<int:comment_id>', methods=['PUT'])
+@jwt_required
 def put_users_comment(comment_id, user_id):
     commentjson = request.get_json()
     commentjson["user_id"] = user_id
@@ -555,6 +570,7 @@ def put_users_comment(comment_id, user_id):
 
 
 @app.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['PUT'])
+@jwt_required
 def put_post_comment(comment_id, post_id):
     commentjson = request.get_json()
     commentjson["post_id"] = post_id
@@ -588,6 +604,7 @@ def put_post_comment(comment_id, post_id):
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>/comments/<int:comment_id>', methods=['PUT'])
 @app.route('/posts/<int:post_id>/users/<int:user_id>/comments/<int:comment_id>', methods=['PUT'])
+@jwt_required
 def put_user_post_comment(comment_id, user_id, post_id):
     commentjson = request.get_json()
     commentjson["user_id"] = user_id
@@ -653,6 +670,7 @@ def delete_user_comment(comment_id, user_id):
         return Response(status=403)
 
 @app.route('/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+@jwt_required
 def delete_post_comment(comment_id, post_id):
     current_identity = get_jwt_identity()
     if current_identity["group"] == "admin":
@@ -675,6 +693,7 @@ def delete_post_comment(comment_id, post_id):
 
 @app.route('/users/<int:user_id>/posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
 @app.route('/posts/<int:post_id>/users/<int:user_id>/comments/<int:comment_id>', methods=['DELETE'])
+@jwt_required
 def delete_user_post_comment(comment_id, post_id = None, user_id = None):
     current_identity = get_jwt_identity()
     if current_identity["group"] == "admin":

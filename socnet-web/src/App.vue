@@ -1,7 +1,20 @@
 <template>
   <div id="app">
-    <Navbar loggedIn="true"></Navbar>
+    <Navbar ></Navbar>
     <router-view/>
+    <v-card height="150">
+      <v-footer
+        absolute
+        class="font-weight-medium"
+      >
+        <v-col
+          class="text-center"
+          cols="12"
+        >
+          {{ new Date().getFullYear() }} — <strong> SocNet, Tomas Cizauskas</strong>
+        </v-col>
+      </v-footer>
+    </v-card>
   </div>
 </template>
 
@@ -9,7 +22,10 @@
 import Navbar from './components/Navbar'
 
 export default {
-  
+  name: 'App',
+  components: {
+    Navbar
+  }
 }
 </script>
 
@@ -21,5 +37,6 @@ export default {
   text-align: center;
   color: #2c3e50;
 }
+
 
 </style>

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, TIMESTAMP, func
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -17,7 +17,8 @@ class User(Base):
     def fromjson(cls, userjson):
         newuser = cls(username=userjson["username"],
          age=userjson["age"] if "age" in userjson else None,
-          group=userjson["group"] if "group" in userjson else None,
+         # group=userjson["group"] if "group" in userjson else None,
+          group="regular",
           password=userjson["password"])
         return newuser
 
@@ -44,7 +45,7 @@ class Post(Base):
     __tablename__ = "posts"
     post_id = Column(Integer, primary_key=True)
     text = Column(Text)
-    date = Column(DateTime)
+    date = Column(TIMESTAMP, nullable=False, server_default=func.now())
     user = relationship("User", back_populates="posts")
     user_id = Column(Integer, ForeignKey('users.user_id'))
     comments = relationship("Comment", back_populates="post")
@@ -76,7 +77,7 @@ class Comment(Base):
     __tablename__ = "comments"
     comment_id = Column(Integer, primary_key=True)
     text = Column(Text)
-    date = Column(DateTime)
+    date = Column(TIMESTAMP, nullable=False, server_default=func.now())
     user = relationship("User", back_populates="comments")
     user_id = Column(Integer, ForeignKey('users.user_id'))
     post = relationship("Post", back_populates="comments")
