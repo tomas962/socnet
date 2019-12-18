@@ -1,9 +1,9 @@
 <template>
   <div>
-    <h1>User Posts</h1>
+    <h1 v-on:click="change">User Posts {{this.$root.globalvar}} </h1>
     <b-container>
         <div>
-          <b-button v-if="loggedin" v-b-modal.modal-1>New Post!</b-button>
+          <b-button v-if="this.$root.loggedIn" v-b-modal.modal-1>New Post!</b-button>
             <b-modal ok-title="Post" @ok="onSubmit" id="modal-1" title="Say something!">
                 <b-form-group
                   id="input-group-1"
@@ -25,7 +25,7 @@
             <b-col>
                <Post v-bind:post="post"></Post>
             </b-col>
-            <b-col v-if="loggedin" cols="3">
+            <b-col v-if="$root.loggedIn" cols="3">
               <b-form @submit="onSubmitComment">
                 <b-form-input
                   v-model="comments[post.post_id]"
@@ -54,7 +54,8 @@ export default {
         ],
         posttext: '',
         comments:{},
-        loggedin: this.$root.loggedIn//localStorage.getItem('logged_in') == 'true'
+        loggedin: localStorage.getItem('logged_in') == 'true',
+        glob: this.$root.globalvar
       }
   },
   created: async function(){
@@ -79,7 +80,10 @@ export default {
         await this.getPosts()
         console.log(response)
       },
-
+      change(){
+        this.$root.globalvar = 'changed'
+        console.log(this)
+      },
       async onSubmitComment(evt) {
         evt.preventDefault()
         console.log(evt)

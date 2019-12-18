@@ -81,9 +81,8 @@ export default {
           localStorage.setItem('user_id', jwt_decode(json.access_token).identity.user_id)
           localStorage.setItem('username', jwt_decode(json.access_token).identity.username)
           localStorage.setItem('logged_in', "true")
-          //this.$loggedIn = true //TODO: fix loggedIn
           this.$root.loggedIn = true
-          this.$root.$emit('logged-in')
+          //.$root.$emit('logged-in')
           this.$router.push('/posts')
         }
       }

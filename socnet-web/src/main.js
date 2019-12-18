@@ -14,12 +14,20 @@ Vue.use(BootstrapVue)
 Vue.prototype.$rest = 'http://192.168.1.72:5000'
 Vue.prototype.$loggedIn = false
 
-Vue.mixin({
-  
+export const globalStore = new Vue({
+  data: {
+    loggedIn: false
+  }
 })
+
 
 new Vue({
   router,
   vuetify,
-  render: h => h(App)
+  render: h => h(App),
+  data:{
+    loggedIn: localStorage.getItem('jwttoken') != null ? true : false,
+    user_id: localStorage.getItem('user_id'),
+    username: localStorage.getItem('username') != null ? localStorage.getItem('username') : 'Guest'
+  }
 }).$mount('#app')

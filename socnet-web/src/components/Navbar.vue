@@ -53,7 +53,8 @@ export default {
       localStorage.removeItem('jwttoken')
       this.loggedin = false
       this.username = "Guest"
-      this.$root.$emit('logged-out')
+      //this.$root.$emit('logged-out')
+      this.$root.loggedIn = false
       this.$router.push('/')
     }
   },
