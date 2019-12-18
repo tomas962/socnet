@@ -116,6 +116,9 @@ def put_user(user_id):
     userjson["user_id"] = user_id
     new_user = User.fromjson(userjson)
 
+    if "group" in userjson:
+        if userjson["group"] != 'admin' and  userjson["group"] != 'regular':
+            return Response(status=400)
     # try to update
     user_to_update = User.query.filter(User.user_id == user_id).one_or_none()
     if user_to_update is not None:

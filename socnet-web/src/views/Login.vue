@@ -76,12 +76,18 @@ export default {
           //success, save token and redirect to posts
           const json = await response.json()
           console.log(json)
+          let token = jwt_decode(json.access_token)
           localStorage.setItem('jwttoken', json.access_token)
           localStorage.setItem('refreshtoken', json.refresh_token)
-          localStorage.setItem('user_id', jwt_decode(json.access_token).identity.user_id)
-          localStorage.setItem('username', jwt_decode(json.access_token).identity.username)
+          localStorage.setItem('user_id', token.identity.user_id)
+          localStorage.setItem('username', token.identity.username)
           localStorage.setItem('logged_in', "true")
+          localStorage.setItem('group', token.identity.group)
           this.$root.loggedIn = true
+          this.$root.username = token.identity.username
+          this.$root.user_id = token.identity.user_id
+          this.$root.group = token.identity.group
+          this.$root.jwttoken = json.access_token
           //.$root.$emit('logged-in')
           this.$router.push('/posts')
         }

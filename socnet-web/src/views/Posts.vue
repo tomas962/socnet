@@ -2,6 +2,9 @@
   <div>
     <h1 v-on:click="change">User Posts {{this.$root.globalvar}} </h1>
     <b-container>
+        <b-alert v-model="showPostDeletedAlert" dismissible>
+          Post deleted succesfuly
+        </b-alert>
         <div>
           <b-button v-if="this.$root.loggedIn" v-b-modal.modal-1>New Post!</b-button>
             <b-modal ok-title="Post" @ok="onSubmit" id="modal-1" title="Say something!">
@@ -23,17 +26,18 @@
         </div>
         <b-row v-for="post in posts" :key="post.post_id">
             <b-col>
-               <Post v-bind:post="post"></Post>
+               <Post class="post" v-on:post-deleted="onPostDeleted" v-bind:post="post"></Post>
             </b-col>
             <b-col v-if="$root.loggedIn" cols="3">
               <b-form @submit="onSubmitComment">
                 <b-form-input
+                  class="mt-5"
                   v-model="comments[post.post_id]"
                   type="text"
                   required
                   placeholder="Enter your comment"
                 ></b-form-input>
-                <b-button type="submit" v-bind:value="post.post_id" variant="primary">Comment</b-button>
+                <b-button class="mt-1" type="submit" v-bind:value="post.post_id" variant="primary">Comment</b-button>
               </b-form>
             </b-col>
         </b-row>
@@ -55,14 +59,17 @@ export default {
         posttext: '',
         comments:{},
         loggedin: localStorage.getItem('logged_in') == 'true',
-        glob: this.$root.globalvar
+        glob: this.$root.globalvar,
+        showPostDeletedAlert: false
       }
   },
   created: async function(){
     console.log(this.$root)
-    this.$root.$on('logged-in', () => {this.loggedin = true})
-    this.$root.$on('logged-out', () => {this.loggedin = false})
+    this.$root.$on('comment-deleted', async () => {await this.getPosts()})
     await this.getPosts()
+  },
+
+  mounted: function () {
   },
 
   methods: {
@@ -123,7 +130,12 @@ export default {
           
         this.posts = postsJson
         console.log(this.posts)
-  }
+      },
+
+      async onPostDeleted(){
+        await this.getPosts()
+        this.showPostDeletedAlert=true
+      }
       
   }
 }

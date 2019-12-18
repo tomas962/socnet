@@ -15,11 +15,11 @@ class User(Base):
 
     @classmethod
     def fromjson(cls, userjson):
-        newuser = cls(username=userjson["username"],
+        newuser = cls(username=userjson["username"] if "username" in userjson else None,
          age=userjson["age"] if "age" in userjson else None,
          # group=userjson["group"] if "group" in userjson else None,
           group="regular",
-          password=userjson["password"])
+          password=userjson["password"] if "password" in userjson else None)
         return newuser
 
     def __repr__(self):
